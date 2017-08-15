@@ -1,6 +1,7 @@
 var restify = require('restify');
 var builder = require('botbuilder');
 var request = require('request');
+var __ = require('underscore');
 
 // Setup Restify Server
 var server = restify.createServer();
@@ -27,17 +28,55 @@ var bot = new builder.UniversalBot(connector, function (session) {
       "Prediction-Key": process.env.CUSTOM_VISION_PREDICTION_KEY
     },
     json: {
-      "Url": "http://anime.geocities.jp/grysk171/railwayyamanoteline_e231_500_13.jpg"
+      "Url": session.message.text
     }
   }
   request.post(options, function (error, response, body) {
     if(!error && response.statusCode == 200) {
       console.log(JSON.stringify(response.body));
+      var predictions = response.body.Predictions;
+      var mostSimilarPrediction = __.max(predictions, function(predictions){ return predictions.Probability; });
+
+      var url = encodeURI("http://api.ekispert.jp/v1/json/operationLine?code=" + mostSimilarPrediction.Tag + "&key=" + process.env.EKISPERT_ACCESS_KEY)
+      var options = {
+        url: url,
+        json: true
+      }
+
+      request.get(options, function(error, response, body) {
+        if (!error && response.statusCode == 200) {
+          var operationLineName = response.body.ResultSet.Line.Name;
+          session.send("%s に、いちばんにてるね！", operationLineName);
+
+          var url = encodeURI("http://api.ekispert.jp/v1/json/station?operationLineCode=" + mostSimilarPrediction.Tag + "&key=" + process.env.EKISPERT_ACCESS_KEY)
+          var options = {
+            url: url,
+            json: true
+          }
+
+          request.get(options, function(error, response, body) {
+            if (!error && response.statusCode == 200) {
+
+              session.send("%s は、以下のえきをはしるよ。", operationLineName);
+
+              var stations = response.body.ResultSet.Point;
+              var stationNames = [];
+              for(var i=0; i<stations.length; i++) {
+                stationNames.push(stations[i].Station.Name);
+              }
+              session.send("%s", stationNames.join(' → '));
+            } else {
+              console.log("error: " + error);
+            }
+          })
+        } else {
+          console.log("error: " + error);
+        }
+      })
     } else {
-      console.log("error: ");
+      console.log("error: " + error);
     }
   })
 
-  session.send("You said: %s", session.message.text);
 
 });
