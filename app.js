@@ -29,7 +29,7 @@ var bot = new builder.UniversalBot(connector, function (session) {
   var stationNames = []; // 路線停車駅名リスト
 
   var customVisionApiRequestOptions = {
-    uri: process.env.CUSTOM_VISION_API_ENDPOINT,
+    uri: process.env.CUSTOM_VISION_API_URI,
     headers: {
       "Content-Type": "application/json",
       "Prediction-Key": process.env.CUSTOM_VISION_PREDICTION_KEY
