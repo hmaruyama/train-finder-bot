@@ -22,7 +22,13 @@ server.post('/api/messages', connector.listen());
 // Receive messages from the user and respond by echoing each message back (prefixed with 'You said:')
 var bot = new builder.UniversalBot(connector, function (session) {
 
-  var options = {
+  var lineName = ""; // 駅すぱあと運航路線名
+  var lineCode = ""; // 駅すぱあと運航路線コード
+  var tag = ""; // カテゴリータグ
+  var stations = []; // 路線停車駅情報(名前、緯度経度、都道府県..etc)リスト
+  var stationNames = []; // 路線停車駅名リスト
+
+  var customVisionApiRequestOptions = {
     uri: process.env.CUSTOM_VISION_API_ENDPOINT,
     headers: {
       "Content-Type": "application/json",
@@ -33,14 +39,11 @@ var bot = new builder.UniversalBot(connector, function (session) {
     }
   }
 
-  request.post(options, function (error, response, body) {
+  // Custom Vision API へのPOSTリクエスト
+  request.post(customVisionApiRequestOptions, function (error, response, body) {
     if(!error && response.statusCode == 200) {
-      console.log(JSON.stringify(response.body));
       var predictions = response.body.Predictions;
-      var mostSimilarPrediction = __.max(predictions, function(predictions){ return predictions.Probability; });
-      var tag = mostSimilarPrediction.Tag;
-      var lineName = "";
-      var lineCode = "";
+      tag = __.max(predictions, function(predictions){ return predictions.Probability; }).Tag;
 
       switch (tag) {
         case "Chuo_Sobu":
@@ -71,19 +74,18 @@ var bot = new builder.UniversalBot(connector, function (session) {
 
       session.send("%s に、いちばんにてるね！", lineName);
 
-      var url = encodeURI("http://api.ekispert.jp/v1/json/station?operationLineCode=" + lineCode + "&key=" + process.env.EKISPERT_ACCESS_KEY)
-      var options = {
-        url: url,
+      var ekispertRequestOptions = {
+        url: encodeURI("https://api.ekispert.jp/v1/json/station?operationLineCode=" + lineCode + "&key=" + process.env.EKISPERT_ACCESS_KEY),
         json: true
       }
 
-      request.get(options, function(error, response, body) {
+      // 駅すぱあとWebサービスへのGETリクエスト
+      request.get(ekispertRequestOptions, function(error, response, body) {
         if (!error && response.statusCode == 200) {
 
           session.send("%s は、以下のえきをはしるよ。", lineName);
 
-          var stations = response.body.ResultSet.Point;
-          var stationNames = [];
+          stations = response.body.ResultSet.Point;
           for(var i=0; i<stations.length; i++) {
             stationNames.push(stations[i].Station.Name);
           }
