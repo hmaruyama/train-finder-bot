@@ -29,16 +29,49 @@ var bot = new builder.UniversalBot(connector, function (session) {
       "Prediction-Key": process.env.CUSTOM_VISION_PREDICTION_KEY
     },
     json: {
-      "Url": session.message.text
+      "Url": session.message.attachments[0].contentUrl
     }
   }
+
   request.post(options, function (error, response, body) {
     if(!error && response.statusCode == 200) {
       console.log(JSON.stringify(response.body));
       var predictions = response.body.Predictions;
       var mostSimilarPrediction = __.max(predictions, function(predictions){ return predictions.Probability; });
+      var tag = mostSimilarPrediction.Tag;
+      var lineName = "";
+      var lineCode = "";
 
-      var url = encodeURI("http://api.ekispert.jp/v1/json/operationLine?code=" + mostSimilarPrediction.Tag + "&key=" + process.env.EKISPERT_ACCESS_KEY)
+      switch (tag) {
+        case "Chuo_Sobu":
+          lineName = "ＪＲ中央・総武線各駅停車";
+          lineCode = "110";
+          break;
+        case "Chuo_Ex":
+          lineName = "ＪＲ中央線快速";
+          lineCode = "109";
+          break;
+        case "Keihin-Tohoku":
+          lineName = "ＪＲ京浜東北線";
+          lineCode = "115";
+          break;
+        case "Tokaido":
+          lineName = "ＪＲ東海道本線";
+          lineCode = "117";
+          break;
+        case "Yamanote":
+          lineName = "ＪＲ山手線";
+          lineCode = "113";
+          break;
+        case "Yokosuka_SobuEx":
+          lineName = "ＪＲ横須賀線";
+          lineCode = "116";
+          break;
+      }
+
+      session.send("%s に、いちばんにてるね！", lineName);
+
+      var url = encodeURI("http://api.ekispert.jp/v1/json/station?operationLineCode=" + lineCode + "&key=" + process.env.EKISPERT_ACCESS_KEY)
       var options = {
         url: url,
         json: true
@@ -46,30 +79,15 @@ var bot = new builder.UniversalBot(connector, function (session) {
 
       request.get(options, function(error, response, body) {
         if (!error && response.statusCode == 200) {
-          var operationLineName = response.body.ResultSet.Line.Name;
-          session.send("%s に、いちばんにてるね！", operationLineName);
 
-          var url = encodeURI("http://api.ekispert.jp/v1/json/station?operationLineCode=" + mostSimilarPrediction.Tag + "&key=" + process.env.EKISPERT_ACCESS_KEY)
-          var options = {
-            url: url,
-            json: true
+          session.send("%s は、以下のえきをはしるよ。", lineName);
+
+          var stations = response.body.ResultSet.Point;
+          var stationNames = [];
+          for(var i=0; i<stations.length; i++) {
+            stationNames.push(stations[i].Station.Name);
           }
-
-          request.get(options, function(error, response, body) {
-            if (!error && response.statusCode == 200) {
-
-              session.send("%s は、以下のえきをはしるよ。", operationLineName);
-
-              var stations = response.body.ResultSet.Point;
-              var stationNames = [];
-              for(var i=0; i<stations.length; i++) {
-                stationNames.push(stations[i].Station.Name);
-              }
-              session.send("%s", stationNames.join(' → '));
-            } else {
-              console.log("error: " + error);
-            }
-          })
+          session.send("%s", stationNames.join(' → '));
         } else {
           console.log("error: " + error);
         }
@@ -78,6 +96,4 @@ var bot = new builder.UniversalBot(connector, function (session) {
       console.log("error: " + error);
     }
   })
-
-
 });
