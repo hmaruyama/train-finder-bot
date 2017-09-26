@@ -1,8 +1,8 @@
-require('dotenv').config();
 var restify = require('restify');
 var builder = require('botbuilder');
+
+require('dotenv').config();
 var request = require('request');
-var __ = require('underscore');
 
 // Setup Restify Server
 var server = restify.createServer();
@@ -42,8 +42,7 @@ var bot = new builder.UniversalBot(connector, function (session) {
   // Custom Vision API へのPOSTリクエスト
   request.post(customVisionApiRequestOptions, function (error, response, body) {
     if(!error && response.statusCode == 200) {
-      var predictions = response.body.Predictions;
-      tag = __.max(predictions, function(predictions){ return predictions.Probability; }).Tag;
+      tag = response.body.Predictions[0].Tag;
 
       switch (tag) {
         case "Chuo_Sobu":
