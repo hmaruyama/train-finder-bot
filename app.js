@@ -93,6 +93,7 @@ var bot = new builder.UniversalBot(connector, function (session) {
         })
       } else {
         console.log("error: " + error);
+        session.send("はんていにしっぱいしちゃった。もういちどがぞうを送ってください。");
       }
     })
   } else {
