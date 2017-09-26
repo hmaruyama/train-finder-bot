@@ -18,11 +18,12 @@ server.post('/api/messages', connector.listen());
 
 var bot = new builder.UniversalBot(connector, function (session) {
 
+  // メディア(画像)が添付されているか
   if(session.message.attachments.length > 0) {
 
     var lineName = ""; // 駅すぱあと運航路線名
     var lineCode = ""; // 駅すぱあと運航路線コード
-    var tag = ""; // カテゴリータグ
+    var tag = ""; // custom vision で定義したカテゴリータグ
     var stations = []; // 路線停車駅情報(名前、緯度経度、都道府県..etc)リスト
     var stationNames = []; // 路線停車駅名リスト
 
@@ -40,6 +41,8 @@ var bot = new builder.UniversalBot(connector, function (session) {
     // Custom Vision API へのPOSTリクエスト
     request.post(customVisionApiRequestOptions, function (error, response, body) {
       if(!error && response.statusCode == 200) {
+
+        // Probability (≒信頼度) の高いものからリストされるため、0番目を取得
         tag = response.body.Predictions[0].Tag;
 
         switch (tag) {
@@ -83,6 +86,8 @@ var bot = new builder.UniversalBot(connector, function (session) {
             session.send("%s は、以下のえきをはしるよ。", lineName);
 
             stations = response.body.ResultSet.Point;
+
+            // 駅名称を列挙した配列を作成
             for(var i=0; i<stations.length; i++) {
               stationNames.push(stations[i].Station.Name);
             }
